@@ -1,0 +1,37 @@
+services:
+
+  db:
+    image: postgres:15
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: ai_db
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d ai_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - ai-network
+
+  backend:
+    build: ./backend
+    container_name: fastapi_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_URL=http://172.17.0.1:11434/api/generate
+      - DATABASE_URL=postgresql://admin:admin@db:5432/ai_db
+    networks:
+      - ai-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+networks:
+  ai-network:
+    driver: bridge
