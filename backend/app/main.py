@@ -41,6 +41,10 @@ class Question(BaseModel):
     prompt: str
 
 
+class SearchQuery(BaseModel):
+    query: str
+
+
 @app.post("/ask")
 def ask_ai(question: Question):
     db = SessionLocal()
@@ -71,24 +75,28 @@ def ask_ai(question: Question):
 
 
 @app.post("/search")
-def search_similar(query: str):
+def search_similar(payload: SearchQuery):
     db = SessionLocal()
-    query_embedding = get_embedding(query)
 
-    conversations = db.query(Conversation).all()
+    try:
+        query_embedding = get_embedding(payload.query)
 
-    results = []
+        conversations = db.query(Conversation).all()
 
-    for convo in conversations:
-        stored_embedding = json.loads(convo.embedding)
-        score = cosine_similarity(query_embedding, stored_embedding)
+        results = []
 
-        results.append({
-            "prompt": convo.prompt,
-            "response": convo.response,
-            "score": score
-        })
+        for convo in conversations:
+            stored_embedding = json.loads(convo.embedding)
+            score = cosine_similarity(query_embedding, stored_embedding)
 
-    results.sort(key=lambda x: x["score"], reverse=True)
+            results.append({
+                "prompt": convo.prompt,
+                "response": convo.response,
+                "score": score
+            })
 
-    return results[:3]
+        results.sort(key=lambda x: x["score"], reverse=True)
+
+        return results[:3]
+    finally:
+        db.close()
